@@ -30,4 +30,6 @@ func main() {
 	routes.Routes(app)
 
 	app.Listen(":" + port)
+
+	log.Println("Fiber starting on port:", port)
 }
