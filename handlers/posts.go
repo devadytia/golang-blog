@@ -1,107 +1,201 @@
-package controllers
+package handlers
 
 import (
 	"blog/database"
 	"blog/models"
+	"blog/requests"
+	"strconv"
+	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
 
 func GetAllPosts(c *fiber.Ctx) error {
+	limitParam := c.Params("limit")
+	offsetParam := c.Params("offset")
+
+	limit, err := strconv.Atoi(limitParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid limit",
+		})
+	}
+
+	offset, err := strconv.Atoi(offsetParam)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid offset",
+		})
+	}
+
 	var posts []*models.Post
 
-	database.DB.Debug().Find(&posts)
+	if err := database.DB.Limit(limit).Offset(offset).Find(&posts).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Error retrieving posts",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(posts)
+}
+
+var validate = validator.New()
+
+func CreatePosts(c *fiber.Ctx) error {
+	var req requests.CreatePostRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
+		})
+	}
+
+	if err := validate.Struct(req); err != nil {
+		errors := []string{}
+		for _, e := range err.(validator.ValidationErrors) {
+			var msg string
+			switch e.Tag() {
+			case "required":
+				msg = e.Field() + " wajib diisi"
+			case "min":
+				msg = e.Field() + " minimal " + e.Param() + " karakter"
+			case "oneof":
+				msg = e.Field() + " harus salah satu dari: " + e.Param()
+			default:
+				msg = e.Field() + " tidak valid"
+			}
+			errors = append(errors, msg)
+		}
+
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   errors,
+			"message": "failed to validate",
+		})
+	}
+
+	newPost := models.Post{
+		Title:       req.Title,
+		Content:     req.Content,
+		Category:    req.Category,
+		CreatedDate: time.Now(),
+		UpdatedDate: time.Now(),
+		Status:      req.Status,
+	}
+
+	database.DB.Create(&newPost)
+
+	return c.Status(fiber.StatusOK).JSON([]string{})
+}
+
+func GetPostById(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid ID",
+		})
+	}
+
+	var post []*models.Post
+
+	result := database.DB.First(&post, id)
+
+	if result.Error != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Article not found",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(post)
+}
+
+func UpdatePost(c *fiber.Ctx) error {
+	idParam := c.Params("id")
+
+	id, err := strconv.Atoi(idParam)
+
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid ID",
+		})
+	}
+
+	var req requests.CreatePostRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid request body",
+		})
+	}
+
+	if err := validate.Struct(req); err != nil {
+		errors := []string{}
+		for _, e := range err.(validator.ValidationErrors) {
+			var msg string
+			switch e.Tag() {
+			case "required":
+				msg = e.Field() + " wajib diisi"
+			case "min":
+				msg = e.Field() + " minimal " + e.Param() + " karakter"
+			case "oneof":
+				msg = e.Field() + " harus salah satu dari: " + e.Param()
+			default:
+				msg = e.Field() + " tidak valid"
+			}
+			errors = append(errors, msg)
+		}
+
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   errors,
+			"message": "failed to validate",
+		})
+	}
+
+	result := database.DB.Model(&models.Post{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"title":        req.Title,
+			"content":      req.Content,
+			"category":     req.Category,
+			"updated_date": time.Now(),
+			"status":       req.Status,
+		})
+
+	if result.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Article not found",
+		})
+	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Success Get All Posts",
-		"posts":   posts,
+		"message": "Succes update Article",
 	})
 }
 
-// func CreatePosts(c *fiber.Ctx) error {
-// 	user := new(models.Post)
+func DeletePost(c *fiber.Ctx) error {
+	idParam := c.Params("id")
 
-// 	if err := c.BodyParser(user); err != nil {
-// 		return c.Status(fiber.StatusServiceUnavailable).JSON(err.Error())
-// 	}
+	id, err := strconv.Atoi(idParam)
 
-// 	// Validation
-// 	validate := validator.New()
-// 	errValidate := validate.Struct(user)
-// 	if errValidate != nil {
-// 		return c.Status(400).JSON(fiber.Map{
-// 			"message": "failed to validate",
-// 			"error":   errValidate.Error(),
-// 		})
-// 	}
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid ID",
+		})
+	}
 
-// 	newUser := models.Post{
-// 		Name:  user.Name,
-// 		Email: user.Email,
-// 		Phone: user.Phone,
-// 	}
+	result := database.DB.Where("id = ?", id).Delete(&models.Post{})
 
-// 	hashPassword, err := utils.HashPassword(user.Password)
-// 	if err != nil {
-// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 			"message": "status internal server error",
-// 		})
-// 	}
+	if result.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Article not found",
+		})
+	}
 
-// 	newUser.Password = hashPassword
-
-// 	database.DB.Debug().Create(&newUser)
-
-// 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-// 		"message": "Success Created new User",
-// 	})
-// }
-
-// func GetUserById(c *fiber.Ctx) error {
-// 	var user []*models.User
-
-// 	result := database.DB.Debug().First(&user, c.Params("id"))
-
-// 	if result.Error != nil {
-// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-// 			"message": "User not found",
-// 		})
-// 	}
-
-// 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-// 		"user": user,
-// 	})
-
-// }
-
-// func UpdateUser(c *fiber.Ctx) error {
-// 	user := new(models.User)
-
-// 	if err := c.BodyParser(user); err != nil {
-// 		return c.Status(fiber.StatusBadRequest).JSON(err.Error())
-// 	}
-
-// 	id, _ := strconv.Atoi(c.Params("id"))
-
-// 	database.DB.Debug().Model(&models.User{}).Where("id = ?", id).Updates(map[string]interface{}{
-// 		"name":  user.Name,
-// 		"email": user.Email,
-// 		"phone": user.Phone,
-// 	})
-
-// 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-// 		"message": "succes update user",
-// 	})
-// }
-
-// func DeleteUser(c *fiber.Ctx) error {
-// 	user := new(models.User)
-
-// 	id, _ := strconv.Atoi(c.Params("id"))
-
-// 	database.DB.Debug().Where("id = ?", id).Delete(&user)
-
-// 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-// 		"message": "delete user successfully",
-// 	})
-// }
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Delete post successfully",
+	})
+}

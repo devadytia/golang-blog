@@ -1,14 +1,18 @@
 package routes
 
 import (
+	"blog/handlers"
+
 	"github.com/gofiber/fiber/v2"
 )
 
 func Routes(app *fiber.App) {
-	// method GET
-	// app.Get("/", handlers.ReadData)
-	// // Method GET by ID
-	// app.Get("/:id", handlers.ReadDataById)
+	app.Get("/article/:limit/:offset", handlers.GetAllPosts)
+	app.Post("/article", handlers.CreatePosts)
+	app.Get("/article/:id", handlers.GetPostById)
+	app.Post("/article/:id", handlers.UpdatePost)
+	app.Delete("/article/:id", handlers.DeletePost)
+	// app.Post("/article/:id", handlers.GetPostById)
 	// // Method POST
 	// app.Post("/", handlers.InsertData)
 	// // method DELETE

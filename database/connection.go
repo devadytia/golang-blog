@@ -16,7 +16,7 @@ func ConnectDB() {
 	err := godotenv.Load()
 
 	if err != nil {
-		log.Println("Warning: .env file not found, using system environment")
+		log.Println("File env tidak ditemukan")
 	}
 
 	user := os.Getenv("DB_USER")
@@ -34,5 +34,4 @@ func ConnectDB() {
 	}
 
 	DB = db
-	log.Println("Database connected 🚀")
 }
