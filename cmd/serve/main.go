@@ -29,7 +29,7 @@ func main() {
 
 	routes.Routes(app)
 
+	log.Println("Fiber starting on port:", port)
 	app.Listen(":" + port)
 
-	log.Println("Fiber starting on port:", port)
 }
