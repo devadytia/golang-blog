@@ -19,7 +19,11 @@ func main() {
 		log.Println("File env tidak ditemukan")
 	}
 
-	port := os.Getenv("APP_PORT")
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = "3000"
+	}
 
 	app := fiber.New()
 
