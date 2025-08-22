@@ -14,6 +14,7 @@ import (
 func GetAllPosts(c *fiber.Ctx) error {
 	limitParam := c.Params("limit")
 	offsetParam := c.Params("offset")
+	status := c.Query("status")
 
 	limit, err := strconv.Atoi(limitParam)
 	if err != nil {
@@ -30,8 +31,13 @@ func GetAllPosts(c *fiber.Ctx) error {
 	}
 
 	var posts []*models.Post
+	dbQuery := database.DB.Limit(limit).Offset(offset)
 
-	if err := database.DB.Limit(limit).Offset(offset).Find(&posts).Error; err != nil {
+	if status != "" {
+		dbQuery = dbQuery.Where("status = ?", status)
+	}
+
+	if err := dbQuery.Find(&posts).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"message": "Error retrieving posts",
 			"error":   err.Error(),
