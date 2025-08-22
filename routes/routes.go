@@ -12,11 +12,4 @@ func Routes(app *fiber.App) {
 	app.Get("/article/:id", handlers.GetPostById)
 	app.Post("/article/:id", handlers.UpdatePost)
 	app.Delete("/article/:id", handlers.DeletePost)
-	// app.Post("/article/:id", handlers.GetPostById)
-	// // Method POST
-	// app.Post("/", handlers.InsertData)
-	// // method DELETE
-	// app.Delete("/:id", handlers.DeleteData)
-	// // Method PATCH
-	// app.Patch("/:id", handlers.PatchData)
 }
